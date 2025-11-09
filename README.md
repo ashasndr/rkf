@@ -17,7 +17,8 @@ Pretty much the same as Linux but via [WSL](https://learn.microsoft.com/en-us/wi
 rkf [options]
 ```
 Prerequisite: have copied valid data from the sheet, something like this:
-![image of a valid copy/paste](./images/rkfimg2.png)
+
+![image of a valid copy/paste](images/rkfimg2.png "image of a valid copy paste")
 
 ### Examples:
 ```bash
@@ -62,6 +63,6 @@ rkf -3 --ft "Ranking my own tracks"
 ```
 
 ## Features to come
-A "database" (a tsv) storing the entire sheets, which you can manually update, which would let you make rankings without needing to go CTRL C manually from MCatalog (or ncsinfo)
-Config file 
+- A "database" (a tsv) storing the entire sheets, which you can manually update, which would let you make rankings without needing to go CTRL C manually from MCatalog (or ncsinfo)
+- Config file 
 
