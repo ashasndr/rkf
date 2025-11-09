@@ -2,10 +2,23 @@
 
 rkf (RanK Format) is a Bash CLI tool to make it easier to make Monstercat/NCS rankings.
 
-### Usage: 
+## Installation
+Dependencies: wl-copy OR xclipboard depending on if you're on Wayland or X11. curl if you want to download it via the terminal.
+### Linux
+```bash
+curl "https://github.com/ashasndr/rkf/releases/download/Release/rkf" > rkf
+ln rkf ~/.local/bin/rkf
+```
+### Windows
+Pretty much the same as Linux but via [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+
+## Usage: 
 ```
 rkf [options]
 ```
+Prerequisite: have copied valid data from the sheet, something like this:
+
+![image of a valid copy/paste](images/rkfimg2.png "image of a valid copy paste")
 
 ### Examples:
 ```bash
@@ -48,3 +61,8 @@ rkf -3 --ft "Ranking my own tracks"
   --ncsplaylist             Copies NCS playlist URL
   --changelog               Display changelogs
 ```
+
+## Features to come
+- A "database" (a tsv) storing the entire sheets, which you can manually update, which would let you make rankings without needing to go CTRL C manually from MCatalog (or ncsinfo)
+- Config file 
+
