@@ -69,7 +69,6 @@ will produce a "Ranking NCS September 2015" with no subtitle and no markers, and
   --changelog               Display changelogs
 ```
 
-## Features to come
-- A "database" (a tsv) storing the entire sheets, which you can manually update, which would let you make rankings without needing to go CTRL C manually from MCatalog (or ncsinfo)
+## Features to come (no promises)
 - Config file 
 
