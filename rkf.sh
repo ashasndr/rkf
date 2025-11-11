@@ -2,40 +2,26 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-#############################
-################## GLOBALS
-scheme=""
-has_emojis=false
-title=""
-subtitle=""
-lines=0
-cols=""
-has_display=false
-has_display_less=false
-has_copy=true
-has_separators=true
-has_windows=false
-has_recover=false
-has_tsv_source=false
-month_query=""
-text_editor="nano"
+source ./imports/global.sh
 
 #############################
 ################## FUNCTIONS
 changelogs() {
     cat <<EOF
-    2.2 - added recover save option, which recovers the temporary editing file
-    2.1 - added disco genre, made et YYMM instead of MMYY, recoded so reasonings can have dashes and improved output (shuf | nl thing)
-    2.0 - completely recoded everything, renamed to rkf, better error display, mcatalog support, full line copying support, the options people would "want" are now all enabled by default
+    2.4 - Added wiki, config.conf, and --tet and --editconf
+    2.3 - Added tsvs
+    2.2 - Added recover save option, which recovers the temporary editing file
+    2.1 - Added disco genre, made et YYMM instead of MMYY, recoded so reasonings can have dashes and improved output (shuf | nl thing)
+    2.0 - Completely recoded everything, renamed to rkf, better error display, mcatalog support, full line copying support, the options people would "want" are now all enabled by default
     ---
-    1.7 - added markers and numeration (first update in a hot minute too)
-    1.6 - added windows compatibility through wsl
-    1.5 - added emotes arg, nocopy arg, added display arg. added dash miniargs
-    1.4 - renamed args norank to nork and ncsinfo to ninf, added title arg.
-    1.3 - reformatted to clear code, having an certain order isn't needed in arguments anymore. added ncsinfo and import arg
-    1.2 - added nanify
-    1.1 - added order argument and help
-    1.0 - created with regular formatting
+    1.7 - Added markers and numeration (first update in a hot minute too)
+    1.6 - Added windows compatibility through wsl
+    1.5 - Added emotes arg, nocopy arg, added display arg. added dash miniargs
+    1.4 - Renamed args norank to nork and ncsinfo to ninf, added title arg.
+    1.3 - Reformatted to clear code, having an certain order isn't needed in arguments anymore. Added ncsinfo and import arg
+    1.2 - Added nanify
+    1.1 - Added order argument and help
+    1.0 - Created with regular formatting
 EOF
     exit 0
 
@@ -55,9 +41,8 @@ Options:
   -2            2 lines (Artists, Songs)
   -3            3 lines (Genre, Artists, Songs)
                 if neither 2 or 3 are selected, it'll default to full document lines.
-  -d            display (cat) after execution
-  -l            display (less) after exec
-  -c            DO NOT copy result after finished
+  -d            Toggle display after execution
+  -c            Toggle copy result after finished
   -w            Sets you to Windows (WSL) mode (but likely already auto-detects if you are on windows, only use if you are experiencing issues)
 
   --title "yourtext"        Set a title (Ranking (scheme) (yourtext))
@@ -70,6 +55,7 @@ Options:
   --expresstitle YYMM       Set a title (Ranking (scheme) (MM converted to month) 20(YY))
         aka --et
         aka --yymm
+  --tet                     Express title + TSV import
   --updatedb                Update db of a certain label (must have correct info in clipboard, and must be called with -n or -m)
         aka --dbupd
         aka --db
@@ -95,21 +81,22 @@ set_clipboard_cmds() {
         clip_copy="xclip -selection clipboard"
         clip_paste="xclip -selection clipboard -o"
     else
-        echo "No wl-copy/wl-paste or xclip found in PATH" >&2
+        echo "[error] No wl-copy/wl-paste or xclip found in PATH" >&2
         return 1
     fi
 }
 
+# this isn't really used anymore but i keep it here just in case
 display_debug() {
-    echo "title     : $title"
-    echo "subtitle  : $subtitle"
-    echo "scheme    : $scheme"
+    echo "[debug] title     : $title"
+    echo "[debug] subtitle  : $subtitle"
+    echo "[debug] scheme    : $scheme"
     if $has_emojis; then
-        echo "i contain emojis"
+        echo "[debug] i contain emojis"
     else
-        echo "i do not contain emojis"
+        echo "[debug] i do not contain emojis"
     fi
-    echo "lines     : $lines"
+    echo "[debug] lines     : $lines"
 }
 
 get_title() {
@@ -121,6 +108,11 @@ get_month_query() {
     local num_year="20${input:0:2}"
     local num_month="${input: -2}"
     echo "${num_year}-${num_month}-"
+}
+
+disphelpcmd() {
+    echo "Try rkf --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
+    exit 1
 }
 
 unexpress_title() {
@@ -205,18 +197,18 @@ if [[ $# -eq 0 ]]; then
     usage 1
 fi
 
-while getopts ":23dlmenwhctrs-:" opt; do
+while getopts ":23dmenwhactrs-:" opt; do
     case $opt in
-        n) scheme="NCS" ;;
-        e) has_emojis=true ;;
         m) scheme="Monstercat" ;;
+        n) scheme="NCS" ;;
+        e) has_emojis=!$has_emojis ;;
         2) lines=2 ;;
         3) lines=3 ;;
-        c) has_copy=false ;;
-        d) has_display=true ;;
-        l) has_display_less=true ;;
-        w) has_windows=true ;;
-        s) has_separators=false ;;
+        c) has_copy=!$has_copy ;;
+        a) has_avgcalc=!$has_avgcalc ;;
+        d) has_display=!$has_display ;;
+        w) has_windows=!$has_windows ;;
+        s) has_separators=!$has_separators ;;
         r) has_recover=true ;;
         t) has_tsv_source=true ;;
         h) usage 0 ;;
@@ -226,6 +218,9 @@ while getopts ":23dlmenwhctrs-:" opt; do
                     title=$(echo "# Ranking ${scheme} ${!OPTIND}")
                     OPTIND=$((OPTIND + 1))
                     ;;
+                tet)
+                    has_tsv_source=true
+                    ;&
                 expresstitle|et|yymm)
                     month_query=$(get_month_query ${!OPTIND})
                     title=$(unexpress_title ${!OPTIND})
@@ -243,40 +238,44 @@ while getopts ":23dlmenwhctrs-:" opt; do
                     update_db
                     exit 0
                     ;;
+                config)
+                    $edit ./config.sh
+                    exit 0
+                    ;;
                 help)
                     usage 0 ;;
                 errors|err)
-                    less errors.txt
+                    $display errors.txt
                     exit 0
                     ;;
                 copyerrors|cperr)
-                    cat errors.txt | $clip_copy
+                    $clip_copy < errors.txt
                     exit 0
                     ;;
                 last)
-                    less rankoutput.txt
+                    $display rankoutput.txt
                     exit 0
                     ;;
                 copylast|cplast)
-                    cat rankoutput.txt | $clip_copy
+                    $clip_copy < rankoutput.txt
                     exit 0
                     ;;
-                mcatalog)
+                mcatalog|mcatsh)
                     echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit" | $clip_copy
                     echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit"
                     exit 0
                     ;;
-                ncsinfo)
+                ncsinfo|ncssh)
                     echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?" | $clip_copy
                     echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?"
                     exit 0
                     ;;
-                ncsplaylist)
+                ncsplaylist|ncspl)
                     echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW" | $clip_copy
                     echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW"
                     exit 0
                     ;;
-                monstercatplaylist|mcatplaylist)
+                monstercatplaylist|mcatplaylist|mcatpl)
                     echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu" | $clip_copy
                     echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu"
                     exit 0
@@ -285,13 +284,13 @@ while getopts ":23dlmenwhctrs-:" opt; do
                     changelogs
                     ;;
                 *)
-                    echo "Unknown flag: --$OPTARG" >&2
-                    usage 1 ;;
+                    echo "[error] Unknown flag: --$OPTARG" >&2
+                    disphelpcmd
             esac
             ;;
         \?)
-            echo "Unknown flag: -$OPTARG" >&2
-            usage 1 ;;
+            echo "[error] Unknown flag: -$OPTARG" >&2
+            disphelpcmd
     esac
 done
 shift $((OPTIND - 1))
@@ -299,13 +298,14 @@ shift $((OPTIND - 1))
 ##########################
 ###### ERROR CHECKING
 if [[ $scheme == "" ]]; then
-    echo "Error: No scheme specified."
-    usage 1
+    echo "[error] No scheme specified."
+    disphelpcmd
 elif [[ $title = "" ]]; then
-    echo "Error: No title specified"
-    usage 1
+    echo "[error] No title specified"
+    disphelpcmd
 elif [[ $has_emojis && $lines -eq 2 ]]; then
-    echo "Cannot use emojis if you select only 2 columns"
+    echo "[error] Cannot use emojis if you select only 2 columns"
+    disphelpcmd
 fi
 
 init_values
@@ -327,7 +327,7 @@ parse_wanted_cols() {
         for (i=1; i<=n; i++) printf "%s%s", $a[i], (i<n ? OFS : ORS)
     }'
 }
-# reminder for future ash,  FS=field separator , OFS=output field separator, ORS=newline
+# reminder for future ash if needed ORS=newline
 
 emojify() {
     if [ "$has_emojis" ] && [ "$lines" -ne 2 ]; then
@@ -464,27 +464,29 @@ separatorify() {
 }
 
 avgcalc() {
-    awk -F'\\|' '
-    {
-        rating_part = $2
-        gsub(/^[ \t]+/, "", rating_part)
+    if [ $has_avgcalc == true ]; then
+        awk -F'\\|' '
+        {
+            rating_part = $2
+            gsub(/^[ \t]+/, "", rating_part)
 
-        split(rating_part, parts, "-")
-        gsub(/^[ \t]+|[ \t]+$/, "", parts[1])
+            split(rating_part, parts, "-")
+            gsub(/^[ \t]+|[ \t]+$/, "", parts[1])
 
-        if (match(parts[1], /^([0-9]+(\.[0-9])?)\/([0-9]+)$/, m)) {
-            rating = m[1] + 0
-            scale  = m[3]
-            if (scale == 10) {
-                sum += rating
-                count++
+            if (match(parts[1], /^([0-9]+(\.[0-9])?)\/([0-9]+)$/, m)) {
+                rating = m[1] + 0
+                scale  = m[3]
+                if (scale == 10) {
+                    sum += rating
+                    count++
+                }
             }
         }
-    }
-    END {
-        avg = sum / count
-        printf "### Average monthly score: %.1f/10\n", avg
-    }'
+        END {
+            avg = sum / count
+            printf "### Average monthly score: %.1f/10\n", avg
+        }'
+    fi
 }
 
 ##########################
@@ -493,7 +495,7 @@ avgcalc() {
 if [ $has_recover == false ]; then
     if [ $has_tsv_source == true ]; then
         if [ $month_query == "" ]; then
-            echo 'error, no month has been selected with --expresstitle'
+            echo '[error] no month has been selected with --expresstitle'
             exit 1
         fi
 
@@ -513,7 +515,7 @@ if [ $has_recover == false ]; then
                 [Yy]*)
                     ;;
                 *)
-                    printf "\nclosing. if you want to update the local file, the command to update is rkf -n|m --db. \
+                    printf "\n[info] Closing. if you want to update the local file, the command to update is rkf -n|m --db. \
 make sure you have the whole catalog spreadsheet in your clipboard before running the command"
                     exit 1
                     ;;
@@ -529,10 +531,10 @@ fi
 
 ## gives an error if the file is filled with meaningless clutter
 if [ $(grep ':WhiteCircle:.  -  |' < editing_ranking.temp| wc -l) -ne 0 ]; then
-    echo "error, invalid values provided. ${month_query}"
+    echo "[error] invalid values provided. ${month_query}"
     exit 1
 else
-    $text_editor editing_ranking.temp
+    $edit editing_ranking.temp
     {
         echo "$title"
         echo "$subtitle"
@@ -545,12 +547,9 @@ if [[ $has_copy == true ]]; then
     $clip_copy < rankoutput.txt
 fi
 if [[ $has_display == true ]]; then
-    cat rankoutput.txt
-fi
-if [[ $has_display_less == true ]]; then
-    less rankoutput.txt
+    $display rankoutput.txt
 fi
 
 if [ -s errors.txt ]; then
-    printf "The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors"
+    printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors"
 fi
