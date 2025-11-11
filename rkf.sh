@@ -111,7 +111,7 @@ get_month_query() {
 }
 
 disphelpcmd() {
-    echo "Try rkf --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
+    echo "[info] Try rkf --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
     exit 1
 }
 
@@ -239,7 +239,7 @@ while getopts ":23dmenwhactrs-:" opt; do
                     exit 0
                     ;;
                 config)
-                    $edit ./config.sh
+                    $edit ./config.conf
                     exit 0
                     ;;
                 help)
