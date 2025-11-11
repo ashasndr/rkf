@@ -70,5 +70,7 @@ will produce a "Ranking NCS September 2015" with no subtitle and no markers, and
 ```
 
 ## Features to come (no promises)
-- Config file 
+- Code cleanup
+- More queries possible with tsv imports
+- Extra config options 
 
