@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eEuo pipefail
 IFS=$'\n\t'
 
 source ./imports/global.sh
@@ -81,7 +81,7 @@ set_clipboard_cmds() {
         clip_copy="xclip -selection clipboard"
         clip_paste="xclip -selection clipboard -o"
     else
-        echo "[error] No wl-copy/wl-paste or xclip found in PATH" >&2
+        echo "[error] No wl-copy/wl-paste or xclip found." >&2
         return 1
     fi
 }
@@ -172,143 +172,95 @@ backtodos() {
 }
 
 update_db() {
-    if [ ! -d "./tsv" ]; then
+    if [[ ! -d "./tsv" ]]; then
         mkdir tsv
     fi
 
-    if [ "$scheme" == "" ]; then
-        echo "error: you must specify a scheme (-m/-n)"
+    if [[ -z "$scheme" ]]; then
+        echo "[error] you must specify a scheme (-m/-n)" >&2
     else
         $clip_paste > "./tsv/${scheme}.tsv"
         echo "updated ${scheme} record"
     fi
 }
 
-##                                          gets expanded to empty if does not exist
-if grep -qi microsoft /proc/version || [ -n "${WSL_DISTRO_NAME:-}" ]; then
-    has_windows=true
-fi
+###################
+#### PARSE FLAGS
+parse_args() {
+    # reset this in case we reuse this later
+    OPTIND=1
 
-set_clipboard_cmds
+    while getopts ":23dmenwhactrs-:" opt; do
+        case "$opt" in
+            m) scheme="Monstercat" ;;
+            n) scheme="NCS" ;;
+            e) has_emojis=$(! $has_emojis && echo true || echo false) ;;
+            2) lines=2 ;;
+            3) lines=3 ;;
+            c) has_copy=$(! $has_copy && echo true || echo false) ;;
+            a) has_avgcalc=$(! $has_avgcalc && echo true || echo false) ;;
+            d) has_display=$(! $has_display && echo true || echo false) ;;
+            w) has_windows=true ;;
+            s) has_separators=$(! $has_separators && echo true || echo false) ;;
+            r) has_recover=true ;;
+            t) has_tsv_source=true ;;
+            h) usage 0 ;;
 
-#############################
-################## FLAG PARSING
-if [[ $# -eq 0 ]]; then
-    usage 1
-fi
+            # long options after a double dash. optind used instead of shift to keep the ability to stack small args
+            -)
+                case "${OPTARG}" in
+                    title|ti)
+                        title="# Ranking ${scheme} ${!OPTIND}"
+                        OPTIND=$((OPTIND + 1))
+                        ;;
+                    subtitle|sb)
+                        subtitle="-# ${!OPTIND}"
+                        OPTIND=$((OPTIND + 1))
+                        ;;
+                    fulltitle|full|ft)
+                        title="# ${!OPTIND}"
+                        OPTIND=$((OPTIND + 1))
+                        ;;
+                    tet)
+                        has_tsv_source=true
+                        ;&
+                    expresstitle|et|yymm)
+                        local arg="${!OPTIND}"
+                        month_query=$(get_month_query "$arg")
+                        title=$(unexpress_title "$arg")
+                        OPTIND=$((OPTIND + 1))
+                        ;;
+                    updatedb|dbupd|db)
+                        update_db
+                        exit 0
+                        ;;
+                    changelog|changelogs|cglg)
+                        changelogs
+                        ;;
+                    help)
+                        usage 0
+                        ;;
+                    *)
+                        echo "[error] Unknown flag: --${OPTARG}" >&2
+                        disphelpcmd
+                        ;;
+                esac
+                ;;
+            \?)  # invalid short option
+                echo "[error] Unknown flag: -$OPTARG" >&2
+                disphelpcmd
+                ;;
+            :)   # missing argument for option that requires one
+                echo "[error] Option -$OPTARG requires an argument." >&2
+                disphelpcmd
+                ;;
+        esac
+    done
 
-while getopts ":23dmenwhactrs-:" opt; do
-    case $opt in
-        m) scheme="Monstercat" ;;
-        n) scheme="NCS" ;;
-        e) has_emojis=!$has_emojis ;;
-        2) lines=2 ;;
-        3) lines=3 ;;
-        c) has_copy=!$has_copy ;;
-        a) has_avgcalc=!$has_avgcalc ;;
-        d) has_display=!$has_display ;;
-        w) has_windows=!$has_windows ;;
-        s) has_separators=!$has_separators ;;
-        r) has_recover=true ;;
-        t) has_tsv_source=true ;;
-        h) usage 0 ;;
-        -) # long options
-            case $OPTARG in
-                title|ti)
-                    title=$(echo "# Ranking ${scheme} ${!OPTIND}")
-                    OPTIND=$((OPTIND + 1))
-                    ;;
-                tet)
-                    has_tsv_source=true
-                    ;&
-                expresstitle|et|yymm)
-                    month_query=$(get_month_query ${!OPTIND})
-                    title=$(unexpress_title ${!OPTIND})
-                    OPTIND=$((OPTIND + 1))
-                    ;;
-                subtitle|sb)
-                    subtitle=$(echo "-# ${!OPTIND}")
-                    OPTIND=$((OPTIND + 1))
-                    ;;
-                fulltitle|full|ft)
-                    title=$(echo "# ${!OPTIND}")
-                    OPTIND=$((OPTIND + 1))
-                    ;;
-                updatedb|dbupd|db)
-                    update_db
-                    exit 0
-                    ;;
-                config)
-                    $edit ./config.conf
-                    exit 0
-                    ;;
-                help)
-                    usage 0 ;;
-                errors|err)
-                    $display errors.txt
-                    exit 0
-                    ;;
-                copyerrors|cperr)
-                    $clip_copy < errors.txt
-                    exit 0
-                    ;;
-                last)
-                    $display rankoutput.txt
-                    exit 0
-                    ;;
-                copylast|cplast)
-                    $clip_copy < rankoutput.txt
-                    exit 0
-                    ;;
-                mcatalog|mcatsh)
-                    echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit" | $clip_copy
-                    echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit"
-                    exit 0
-                    ;;
-                ncsinfo|ncssh)
-                    echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?" | $clip_copy
-                    echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?"
-                    exit 0
-                    ;;
-                ncsplaylist|ncspl)
-                    echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW" | $clip_copy
-                    echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW"
-                    exit 0
-                    ;;
-                monstercatplaylist|mcatplaylist|mcatpl)
-                    echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu" | $clip_copy
-                    echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu"
-                    exit 0
-                    ;;
-                changelogs|cglg)
-                    changelogs
-                    ;;
-                *)
-                    echo "[error] Unknown flag: --$OPTARG" >&2
-                    disphelpcmd
-            esac
-            ;;
-        \?)
-            echo "[error] Unknown flag: -$OPTARG" >&2
-            disphelpcmd
-    esac
-done
-shift $((OPTIND - 1))
+    shift $((OPTIND - 1))
+}
 
-##########################
-###### ERROR CHECKING
-if [[ $scheme == "" ]]; then
-    echo "[error] No scheme specified."
-    disphelpcmd
-elif [[ $title = "" ]]; then
-    echo "[error] No title specified"
-    disphelpcmd
-elif [[ $has_emojis && $lines -eq 2 ]]; then
-    echo "[error] Cannot use emojis if you select only 2 columns"
-    disphelpcmd
-fi
 
-init_values
 
 ############
 ### TEXT SORTING FUNCTIONS
@@ -329,6 +281,7 @@ parse_wanted_cols() {
 }
 # reminder for future ash if needed ORS=newline
 
+# emojify: adds an emoji according to the genre parsed from the spreadsheet/tsv/whatever. this part is frankly a mess but i cba to reorganize it
 emojify() {
     if [ "$has_emojis" ] && [ "$lines" -ne 2 ]; then
         awk -v FS='\t' -v OFS='\t' '
@@ -347,7 +300,7 @@ emojify() {
             else if (genre == "Electro") return ":YellowCircle:"
             else if (genre == "Rock") return ":BlackCircle:"
             else if (genre ~ /Drumstep|Halftime/) return ":RedCircle:"
-            else if (genre ~ /House$/ || genre == "Bass House") return ":YellowCircle:"
+            else if (genre ~ /House$/) return ":YellowCircle:"
             else if (genre ~ /Chillout|Ambient|LoFi|Miscellaneous/) return ":WhiteCircle:"
             else return ":WhiteCircle:."
         }
@@ -362,6 +315,7 @@ emojify() {
     fi
 }
 
+# format_into_song: convert TSV fields into "Artist(s) - Song |"
 format_into_song() {
     awk -v FS='\t' -v OFS=' ' '
     {
@@ -376,12 +330,12 @@ format_into_song() {
     }'
 }
 
+# turns the EDIT output into a proper list (something like "Y. **:emoji: Alice, Bob - MySong.mp3 | X/10 - interesting track.")
 afterformat() {
-    error_file="errors.txt"
-    : > "$error_file"   # truncate errors
+    : > "$ERROR_FILE"   # truncate errors
 
     shuf | nl -w1 -s$'\t' | \
-    awk -F'\t|\\|' -v OFS='|' -v ERR="$error_file" '
+    awk -F'\t|\\|' -v OFS='|' -v ERR="$ERROR_FILE" '
     #   $1 = shuffle_index (int)
     #   $2 = song info text
     #   $3 = opinion
@@ -411,9 +365,9 @@ afterformat() {
 }
 
 
-
+# add separators -=-= :emoji: =-=-
 separatorify() {
-    if [ "$has_separators" = true ]; then
+    if [[ "$has_separators" == true ]]; then
         last_emoji=""
         while IFS= read -r line; do
             if [[ "$line" =~ ([0-9]+(\.[0-9]+)?)/10 ]]; then
@@ -463,8 +417,9 @@ separatorify() {
     fi
 }
 
+# calculate average of all scores
 avgcalc() {
-    if [ $has_avgcalc == true ]; then
+    if [[ $has_avgcalc == true ]]; then
         awk -F'\\|' '
         {
             rating_part = $2
@@ -492,12 +447,43 @@ avgcalc() {
 ##########################
 ##### THE ACTUAL PROGRAM THAT DOES THE PROGRAM STUFF
 
-if [ $has_recover == false ]; then
+# checks if you're on wsl, if you have wl-copy or xclip installed
+detect_tools() {
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null || [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+        has_windows=true
+    fi
+
+    set_clipboard_cmds
+}
+
+# cleans up everything after your passage (extra commands pretty much)
+sweep_floor() {
+    if [[ $has_copy == true ]]; then
+        $clip_copy < "$RANK_OUTPUT"
+    fi
+    if [[ $has_display == true ]]; then
+        $DISPLAY "$RANK_OUTPUT"
+    fi
+
+    if [ -s errors.txt ]; then
+        printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors" >&2
+    fi
+}
+
+# extra error checks
+validates() {
+    if [[ $has_tsv_source == true ]] && [[ -z "$month_query" ]]; then
+        echo "[error] tsv requested but no month has been selected with --expresstitle" >&2
+        exit 1
+    fi
+}
+
+
+run_pre_process() {
+    if [ $has_recover == true ]; then
+        return 1
+    fi
     if [ $has_tsv_source == true ]; then
-        if [ $month_query == "" ]; then
-            echo '[error] no month has been selected with --expresstitle'
-            exit 1
-        fi
 
         date_in_line=$(head -n 3 "tsv/${scheme}.tsv" | tail -1 | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
 
@@ -522,34 +508,37 @@ make sure you have the whole catalog spreadsheet in your clipboard before runnin
             esac
         fi
 
-        grep "${month_query}" "./tsv/${scheme}.tsv" > rankinput.txt
+        grep "${month_query}" "./tsv/${scheme}.tsv" > "$RANK_INPUT"
     else
-        $clip_paste > rankinput.txt
+        $clip_paste > "$RANK_INPUT"
     fi
-    lnend < rankinput.txt | parse_wanted_cols | filter_out_ep | emojify | sed 's/ | /, /g' | format_into_song > editing_ranking.temp
-fi
+    lnend < "$RANK_INPUT" | parse_wanted_cols | filter_out_ep | emojify | sed 's/ | /, /g' | format_into_song > "$RANK_TEMP";
+}
 
-## gives an error if the file is filled with meaningless clutter
-if [ $(grep ':WhiteCircle:.  -  |' < editing_ranking.temp| wc -l) -ne 0 ]; then
-    echo "[error] invalid values provided. ${month_query}"
-    exit 1
-else
-    $edit editing_ranking.temp
-    {
-        echo "$title"
-        echo "$subtitle"
-        afterformat < editing_ranking.temp | separatorify
-        avgcalc < editing_ranking.temp
-    } | backtodos > rankoutput.txt
-fi
+edit_process() {
+    # gives an error if the file is filled with meaningless clutter
+    if [ $(grep ':WhiteCircle:.  -  |' < "$RANK_TEMP" | wc -l) -ne 0 ]; then
+        echo "[error] invalid values provided. ${month_query}" >&2
+        exit 1
+    else
+        $EDIT "$RANK_TEMP"
+        {
+            echo "$title"
+            echo "$subtitle"
+            afterformat < "$RANK_TEMP" | separatorify
+            avgcalc < "$RANK_TEMP"
+        } | backtodos > "$RANK_OUTPUT"
+    fi
+}
 
-if [[ $has_copy == true ]]; then
-    $clip_copy < rankoutput.txt
-fi
-if [[ $has_display == true ]]; then
-    $display rankoutput.txt
-fi
+main() {
+    detect_tools
+    parse_args "$@"
+    init_values
+    validates
+    run_pre_process
+    edit_process
+    sweep_floor
+}
 
-if [ -s errors.txt ]; then
-    printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors"
-fi
+main "$@"

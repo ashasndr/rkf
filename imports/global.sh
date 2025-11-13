@@ -15,7 +15,20 @@ has_separators=$default_separators
 has_windows=$is_os_windows
 has_recover=false
 month_query=""
-display=$display_util
-edit=$edit_util
 has_avgcalc=$default_append_average
 has_tsv_source=false
+
+################
+##### CONSTS
+RANK_TEMP="editing_ranking.temp"
+DISPLAY=$display_util
+EDIT=$edit_util
+PROGRAM=$0
+
+readonly PROGRAM
+readonly DISPLAY
+readonly EDIT
+readonly RANK_INPUT
+readonly RANK_OUTPUT
+readonly RANK_TEMP
+readonly ERROR_FILE
