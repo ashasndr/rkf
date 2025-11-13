@@ -190,11 +190,11 @@ parse_args() {
     # reset this in case we reuse this later
     OPTIND=1
 
-    if [[ "$@" == "" ]]; then
+    if [[ "$*" == "" ]]; then
         disphelpcmd
     fi
 
-    while getopts ":23dmenwhactrs-:" opt; do
+    while getopts ":23dmenwhacktrs-:" opt; do
         case "$opt" in
             m) scheme="Monstercat" ;;
             n) scheme="NCS" ;;
@@ -204,6 +204,7 @@ parse_args() {
             c) has_copy=$(! $has_copy && echo true || echo false) ;;
             a) has_avgcalc=$(! $has_avgcalc && echo true || echo false) ;;
             d) has_display=$(! $has_display && echo true || echo false) ;;
+            k) has_charcount=$(! $has_charcount && echo true || echo false) ;;
             w) has_windows=true ;;
             s) has_separators=$(! $has_separators && echo true || echo false) ;;
             r) has_recover=true ;;
@@ -250,22 +251,22 @@ parse_args() {
                         $clip_copy < "$RANK_OUTPUT"
                         exit 0
                         ;;
-                    mcatalog)
+                    mcatalog|mcatsh)
                         echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit" | $clip_copy
                         echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit"
                         exit 0
                         ;;
-                    ncsinfo)
+                    ncsinfo|ncssh|ninf)
                         echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?" | $clip_copy
                         echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?"
                         exit 0
                         ;;
-                    ncsplaylist)
+                    ncsplaylist|ncspl)
                         echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW" | $clip_copy
                         echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW"
                         exit 0
                         ;;
-                    monstercatplaylist|mcatplaylist)
+                    monstercatplaylist|mcatplaylist|mcatpl)
                         echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu" | $clip_copy
                         echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu"
                         exit 0
@@ -276,9 +277,6 @@ parse_args() {
                     updatedb|dbupd|db)
                         update_db
                         exit 0
-                        ;;
-                    changelog|changelogs|cglg)
-                        changelogs
                         ;;
                     help)
                         usage 0
@@ -505,6 +503,16 @@ detect_tools() {
 
 # cleans up everything after your passage (extra commands pretty much)
 sweep_floor() {
+    if [[ $has_charcount == true ]]; then
+        if [[ $has_emojis == true ]]; then
+            charcount=$(( $(wc -c < "$RANK_OUTPUT") + ( $(wc -l < "$RANK_OUTPUT") * 21 ) ))
+            # 21 is the amount of characters that discord adds per emoji in raw text
+        else
+            charcount=$(( $(wc -c < "$RANK_OUTPUT") ))
+        fi
+        echo "characters: $charcount"
+    fi
+
     if [[ $has_copy == true ]]; then
         $clip_copy < "$RANK_OUTPUT"
     fi
@@ -512,7 +520,7 @@ sweep_floor() {
         $DISPLAY "$RANK_OUTPUT"
     fi
 
-    if [ -s errors.txt ]; then
+    if [ -s "ERROR_FILE" ]; then
         printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors" >&2
     fi
 }

@@ -9,6 +9,7 @@ title=""
 subtitle=""
 lines=0
 cols=""
+has_charcount=$default_charcount
 has_display=$default_display_after
 has_copy=$default_copy
 has_separators=$default_separators
