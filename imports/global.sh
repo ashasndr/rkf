@@ -20,9 +20,12 @@ has_tsv_source=false
 
 ################
 ##### CONSTS
-RANK_TEMP="editing_ranking.temp"
-DISPLAY=$display_util
-EDIT=$edit_util
+RANK_TEMP="./ranks/editing_ranking.temp"
+DISPLAY="$display_util"
+EDIT="$edit_util"
+RANK_INPUT="./ranks/${input_file}"
+RANK_OUTPUT="./ranks/${output_file}"
+ERROR_FILE="./ranks/${err_file}"
 PROGRAM=$0
 
 readonly PROGRAM

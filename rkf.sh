@@ -190,6 +190,10 @@ parse_args() {
     # reset this in case we reuse this later
     OPTIND=1
 
+    if [[ "$@" == "" ]]; then
+        disphelpcmd
+    fi
+
     while getopts ":23dmenwhactrs-:" opt; do
         case "$opt" in
             m) scheme="Monstercat" ;;
@@ -229,6 +233,45 @@ parse_args() {
                         month_query=$(get_month_query "$arg")
                         title=$(unexpress_title "$arg")
                         OPTIND=$((OPTIND + 1))
+                        ;;
+                    errors|err)
+                        $DISPLAY "$ERROR_FILE"
+                        exit 0
+                        ;;
+                    copyerrors|cperr)
+                        $clip_copy < "$ERROR_FILE"
+                        exit 0
+                        ;;
+                    last)
+                        $DISPLAY "$RANK_OUTPUT"
+                        exit 0
+                        ;;
+                    copylast|cplast)
+                        $clip_copy < "$RANK_OUTPUT"
+                        exit 0
+                        ;;
+                    mcatalog)
+                        echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit" | $clip_copy
+                        echo "https://docs.google.com/spreadsheets/d/116LycNEkWChmHmDK2HM2WV85fO3p3YTYDATpAthL8_g/edit"
+                        exit 0
+                        ;;
+                    ncsinfo)
+                        echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?" | $clip_copy
+                        echo "https://docs.google.com/spreadsheets/d/1XEPGiHCQ7thyRtyqei4yIuXaL-kXYQX-2bmx6ei99Is/edit?"
+                        exit 0
+                        ;;
+                    ncsplaylist)
+                        echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW" | $clip_copy
+                        echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wtx2X6OG6pzg4ZEqNfsgCyW"
+                        exit 0
+                        ;;
+                    monstercatplaylist|mcatplaylist)
+                        echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu" | $clip_copy
+                        echo "https://www.youtube.com/playlist?list=PLv1Kobfrv9Wuo9JgSkVcoFTpBukYKmSvu"
+                        exit 0
+                        ;;
+                    changelogs|cglg)
+                        changelogs
                         ;;
                     updatedb|dbupd|db)
                         update_db
@@ -451,6 +494,10 @@ avgcalc() {
 detect_tools() {
     if [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null || [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         has_windows=true
+    fi
+
+    if [[ ! -d "./ranks" ]]; then
+        mkdir ranks
     fi
 
     set_clipboard_cmds
