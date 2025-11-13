@@ -36,4 +36,3 @@ Check the [wiki](https://github.com/ashasndr/rkf/wiki) of this repo.
 - More queries possible with tsv imports
 - Extra config options
 - Discord message splitting
-- Discord Emoji Setup
