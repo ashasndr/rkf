@@ -83,7 +83,7 @@ set_clipboard_cmds() {
         clip_copy="xclip -selection clipboard"
         clip_paste="xclip -selection clipboard -o"
     else
-        echo "[error] No wl-copy/wl-paste or xclip found." >&2
+        echo "[error] No wl-copy or xclip found." >&2
         return 1
     fi
 }
@@ -423,7 +423,7 @@ afterformat() {
     }
     END {
         if (valid_count == 0) {
-            print "[error] No valid rankings. Make sure you edited your ranking properly in this format: Song | X/10 - Reasoning" > "/dev/stderr"
+            print "[error] No valid rankings. Make sure you edited your ranking properly in this format: Song | X/10 - Reasoning.\n[info] Use argument -r to recover the last file you were editing." > "/dev/stderr"
             exit 1
         }
     }
@@ -556,7 +556,7 @@ sweep_floor() {
 # extra error checks
 validates() {
     if [[ $has_tsv_source == true ]] && [[ -z "$month_query" ]]; then
-        echo "[error] tsv requested but no month has been selected with --expresstitle" >&2
+        echo "[error] TSV import requested but no month has been selected with --expresstitle" >&2
         exit 1
     fi
 }
@@ -602,7 +602,7 @@ make sure you have the whole catalog spreadsheet in your clipboard before runnin
 edit_process() {
     # gives an error if the file is filled with meaningless clutter
     if [ $(grep "${DEFAULT_EMOJI}.  -  |" < "$RANK_TEMP" | wc -l) -ne 0 ]; then
-        echo "[error] invalid values provided. ${month_query}" >&2
+        echo "[error] invalid values provided. ${month_query}\n[info] Your clipboard contents might be something unrelated, or you are using the wrong scheme (-n/-m)" >&2
         exit 1
     else
         $EDIT "$RANK_TEMP"
