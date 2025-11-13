@@ -74,6 +74,7 @@ EOF
     exit "$1"
 }
 
+# detects which tools the user has
 set_clipboard_cmds() {
     if command -v wl-copy >/dev/null 2>&1 && command -v wl-paste >/dev/null 2>&1; then
         clip_copy="wl-copy"
@@ -100,10 +101,12 @@ display_debug() {
     echo "[debug] lines     : $lines"
 }
 
+# get title from --ti
 get_title() {
     echo "# Ranking ${scheme} ${1}"
 }
 
+# get month query for tsv (YYMM -> 20YY-MM)
 get_month_query() {
     local input=$1
     local num_year="20${input:0:2}"
@@ -111,11 +114,13 @@ get_month_query() {
     echo "${num_year}-${num_month}-"
 }
 
+# display help command, i used to use the whole help page but that cluttered everything
 disphelpcmd() {
     echo "[info] Try rkf --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
     exit 1
 }
 
+# turns YYMM into "Monthname 20YY"
 unexpress_title() {
     local input=$1
     # grabs first 2 charas  prepend 20 directly
@@ -160,10 +165,12 @@ init_values() {
     fi
 }
 
+## removes line ends from windows pastes
 lnend() {
     sed 's/\r//'
 }
 
+# goes back to dos type text
 backtodos() {
     if [ $has_windows == true ]; then
         sed -i 's/$/\r/'
@@ -172,6 +179,7 @@ backtodos() {
     fi
 }
 
+# updates the tsv with the clipvoard content
 update_db() {
     if [[ ! -d "./tsv" ]]; then
         mkdir tsv
@@ -506,12 +514,12 @@ detect_tools() {
 sweep_floor() {
     if [[ $has_charcount == true ]]; then
         if [[ $has_emojis == true ]]; then
-            charcount=$(( $(wc -c < "$RANK_OUTPUT") + ( $(wc -l < "$RANK_OUTPUT") * 21 ) ))
+            charcount=$(( $(wc -c < "$RANK_OUTPUT") + ( $(grep -E "^#" < "$RANK_OUTPUT" | wc -l) * 21 ) ))
             # 21 is the amount of characters that discord adds per emoji in raw text
         else
             charcount=$(( $(wc -c < "$RANK_OUTPUT") ))
         fi
-        echo "characters: $charcount"
+        echo "[info] characters: $charcount"
     fi
 
     if [[ $has_copy == true ]]; then
