@@ -27,6 +27,7 @@ Pretty much the same as Linux but via [WSL](https://learn.microsoft.com/en-us/wi
 Check the [wiki](https://github.com/ashasndr/rkf/wiki) of this repo.
 
 ### Shortcuts
+
 - [Args](https://github.com/ashasndr/rkf/wiki/Args)
 - [Config](https://github.com/ashasndr/rkf/wiki/Config)
 
@@ -34,3 +35,5 @@ Check the [wiki](https://github.com/ashasndr/rkf/wiki) of this repo.
 
 - More queries possible with tsv imports
 - Extra config options
+- Discord message splitting
+- Discord Emoji Setup

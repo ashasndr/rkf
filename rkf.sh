@@ -2,7 +2,7 @@
 set -eEuo pipefail
 IFS=$'\n\t'
 
-source ./imports/global.sh
+. ./imports/global.sh
 
 #############################
 ################## FUNCTIONS
@@ -30,7 +30,7 @@ EOF
 
 usage() {
     cat <<EOF
-Usage: rkf [options]
+Usage: $PROGRAM [options]
 
 Options:
   -n            Use the NCS scheme
@@ -116,7 +116,7 @@ get_month_query() {
 
 # display help command, i used to use the whole help page but that cluttered everything
 disphelpcmd() {
-    echo "[info] Try rkf --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
+    echo "[info] Try $PROGRAM --help, or checking the wiki on the github repo. (https://github.com/ashasndr/rkf/wiki/Config)"
     exit 1
 }
 
@@ -188,7 +188,7 @@ update_db() {
     if [[ -z "$scheme" ]]; then
         echo "[error] you must specify a scheme (-m/-n)" >&2
     else
-        $clip_paste > "./tsv/${scheme}.tsv"
+        $clip_paste | grep -v "NEW: Want to join the editing team?" > "./tsv/${scheme}.tsv"
         echo "updated ${scheme} record"
     fi
 }
@@ -331,39 +331,49 @@ parse_wanted_cols() {
 }
 # reminder for future ash if needed ORS=newline
 
-# emojify: adds an emoji according to the genre parsed from the spreadsheet/tsv/whatever. this part is frankly a mess but i cba to reorganize it
+# emojify: adds an emoji according to the genre parsed from the spreadsheet/tsv/whatever
 emojify() {
     if [ "$has_emojis" ] && [ "$lines" -ne 2 ]; then
-        awk -v FS='\t' -v OFS='\t' '
-        function genre_of(genre) {
-            if (genre ~ /Drum & Bass|Breaks|Neurofunk|Jump-Up/) return ":PinkCircle:"
-            else if (genre ~ /Future House|Techno/) return ":PurpleCircle:"
-            else if (genre ~ /Phonk|Brazilian Funk/) return ":TealCircle:"
-            else if (genre ~ /Jersey Club|Hip Hop|Trap/) return ":GreenCircle:"
-            else if (genre == "Future Bass") return ":LavenderCircle:"
-            else if (genre ~ /Hardcore|Trance|Garage|Electronic|Hardstyle/) return ":WhiteCircle:"
-            else if (genre == "Melodic Bass") return ":CyanCircle:"
-            else if (genre ~ /Midtempo|Glitch Hop|Moombah/) return ":MintCircle:"
-            else if (genre == "Melodic Dubstep") return ":CyanCircle:"
-            else if (genre == "Dubstep") return ":BlueCircle:"
-            else if (genre ~ /Pop|Synthwave|Synthpop|Traditional|Funk|Disco/) return ":OrangeCircle:"
-            else if (genre == "Electro") return ":YellowCircle:"
-            else if (genre == "Rock") return ":BlackCircle:"
-            else if (genre ~ /Drumstep|Halftime/) return ":RedCircle:"
-            else if (genre ~ /House$/) return ":YellowCircle:"
-            else if (genre ~ /Chillout|Ambient|LoFi|Miscellaneous/) return ":WhiteCircle:"
-            else return ":WhiteCircle:."
-        }
-        {
-            if (NF == 3) {
-                $1 = genre_of($1)
+        # build a string "regex;;;emoji<<<>>>regex;;;emoji<<<>>>"
+        # wonky approach but i couldn't think of anything better
+        # if it works it works, god bless
+        local mapping_str=""
+        for genre in "${!GENRE_EMOJIS[@]}"; do
+            emoji="${GENRE_EMOJIS[$genre]}"
+            mapping_str+="${genre};;;${emoji}<<<>>>"
+        done
+        mapping_str=$(echo "${mapping_str}" | sed 's/<<<>>>$//')
+
+        awk -v FS='\t' -v OFS='\t' \
+            -v fallback_emoji="$DEFAULT_EMOJI" \
+            -v mappings="$mapping_str" '
+        BEGIN {
+            # chops up the mapping str inputted into pairs of regexes and emojis
+            pair_count = split(mappings, pairs, "<<<>>>")
+            for (i = 1; i <= pair_count; i++) {
+                split(pairs[i], rgem, ";;;")
+                regex[i] = rgem[1]
+                emoji[i] = rgem[2]
             }
+        }
+
+        function genre_of(genre, i) {
+            for (i = 1; i <= pair_count; i++) {
+                if (genre ~ regex[i]) return emoji[i]
+            }
+            return fallback_emoji
+        }
+
+        {
+            if (NF == 3)
+                $1 = genre_of($1)
             print
         }'
     else
         cat
     fi
 }
+
 
 # format_into_song: convert TSV fields into "Artist(s) - Song |"
 format_into_song() {
@@ -382,7 +392,8 @@ format_into_song() {
 
 # turns the EDIT output into a proper list (something like "Y. **:emoji: Alice, Bob - MySong.mp3 | X/10 - interesting track.")
 afterformat() {
-    : > "$ERROR_FILE"   # truncate errors
+    # remove all errors
+    : > "$ERROR_FILE"
 
     shuf | nl -w1 -s$'\t' | \
     awk -F'\t|\\|' -v OFS='|' -v ERR="$ERROR_FILE" '
@@ -407,8 +418,16 @@ afterformat() {
             print $0 > ERR; next
         }
 
+        valid_count++
         printf "%s\t%06d\t**%s** | %s/%s - %s\n", rating, idx, text, rating, scale, reasoning
-    }' \
+    }
+    END {
+        if (valid_count == 0) {
+            print "[error] No valid rankings. Make sure you edited your ranking properly in this format: Song | X/10 - Reasoning" > "/dev/stderr"
+            exit 1
+        }
+    }
+    ' \
     | sort -t $'\t' -k1,1nr -k2,2n \
     | cut -f3- \
     | nl -w1 -s'. '
@@ -529,8 +548,8 @@ sweep_floor() {
         $DISPLAY "$RANK_OUTPUT"
     fi
 
-    if [ -s "ERROR_FILE" ]; then
-        printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run rkf --errors, or rkf --copyerrors" >&2
+    if [[ -s "$ERROR_FILE" ]]; then
+        printf "[warning] The ranking has some errors, please double check them to make sure everything is properly done.\nplease run $PROGRAM --errors, or $PROGRAM --copyerrors" >&2
     fi
 }
 
@@ -565,7 +584,7 @@ run_pre_process() {
                 [Yy]*)
                     ;;
                 *)
-                    printf "\n[info] Closing. if you want to update the local file, the command to update is rkf -n|m --db. \
+                    printf "\n[info] Closing. if you want to update the local file, the command to update is $PROGRAM -n|m --db. \
 make sure you have the whole catalog spreadsheet in your clipboard before running the command"
                     exit 1
                     ;;
@@ -576,12 +595,13 @@ make sure you have the whole catalog spreadsheet in your clipboard before runnin
     else
         $clip_paste > "$RANK_INPUT"
     fi
-    lnend < "$RANK_INPUT" | parse_wanted_cols | filter_out_ep | emojify | sed 's/ | /, /g' | format_into_song > "$RANK_TEMP";
+    lnend < "$RANK_INPUT" | parse_wanted_cols | filter_out_ep \
+    | emojify | sed 's/ | /, /g' | format_into_song > "$RANK_TEMP";
 }
 
 edit_process() {
     # gives an error if the file is filled with meaningless clutter
-    if [ $(grep ':WhiteCircle:.  -  |' < "$RANK_TEMP" | wc -l) -ne 0 ]; then
+    if [ $(grep "${DEFAULT_EMOJI}.  -  |" < "$RANK_TEMP" | wc -l) -ne 0 ]; then
         echo "[error] invalid values provided. ${month_query}" >&2
         exit 1
     else

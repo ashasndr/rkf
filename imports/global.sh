@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source ./config.conf
+. ./config.conf
 
 #############################
 ################## GLOBALS
@@ -27,8 +27,10 @@ EDIT="$edit_util"
 RANK_INPUT="./ranks/${input_file}"
 RANK_OUTPUT="./ranks/${output_file}"
 ERROR_FILE="./ranks/${err_file}"
-PROGRAM=$0
+PROGRAM=$(basename "$0")
+DEFAULT_EMOJI="$default_color"
 
+readonly DEFAULT_EMOJI
 readonly PROGRAM
 readonly DISPLAY
 readonly EDIT
