@@ -8,6 +8,7 @@ source ./imports/global.sh
 ################## FUNCTIONS
 changelogs() {
     cat <<EOF
+    2.5 - Charcount option, code cleanup
     2.4 - Added wiki, config.conf, and --tet and --editconf
     2.3 - Added tsvs
     2.2 - Added recover save option, which recovers the temporary editing file
