@@ -15,7 +15,7 @@ Dependencies:
 ```bash
 git clone https://github.com/ashasndr/rkf.git
 cd rkf
-ln rkf.sh ~/.local/bin/rkf
+ln -s rkf.sh ~/.local/bin/rkf
 ```
 
 ### Windows

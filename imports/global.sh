@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-. ./config.conf
+source "$SCRIPT_DIR/config.conf"
 
 #############################
 ################## GLOBALS
@@ -21,12 +21,12 @@ has_tsv_source=false
 
 ################
 ##### CONSTS
-RANK_TEMP="./ranks/editing_ranking.temp"
+RANK_TEMP="$SCRIPT_DIR/ranks/editing_ranking.temp"
 DISPLAY="$display_util"
 EDIT="$edit_util"
-RANK_INPUT="./ranks/${input_file}"
-RANK_OUTPUT="./ranks/${output_file}"
-ERROR_FILE="./ranks/${err_file}"
+RANK_INPUT="$SCRIPT_DIR/ranks/${input_file}"
+RANK_OUTPUT="$SCRIPT_DIR/ranks/${output_file}"
+ERROR_FILE="$SCRIPT_DIR/ranks/${err_file}"
 PROGRAM=$(basename "$0")
 DEFAULT_EMOJI="$default_color"
 

@@ -2,7 +2,9 @@
 set -eEuo pipefail
 IFS=$'\n\t'
 
-. ./imports/global.sh
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+source "$SCRIPT_DIR/imports/global.sh"
 
 #############################
 ################## FUNCTIONS
@@ -181,15 +183,15 @@ backtodos() {
 
 # updates the tsv with the clipvoard content
 update_db() {
-    if [[ ! -d "./tsv" ]]; then
+    if [[ ! -d "$SCRIPT_DIR/tsv" ]]; then
         mkdir tsv
     fi
 
     if [[ -z "$scheme" ]]; then
         echo "[error] you must specify a scheme (-m/-n)" >&2
     else
-        $clip_paste | grep -v "NEW: Want to join the editing team?" > "./tsv/${scheme}.tsv"
-        echo "updated ${scheme} record"
+        $clip_paste | grep -v "NEW: Want to join the editing team?" > "$SCRIPT_DIR/tsv/${scheme}.tsv"
+        echo "[info] Updated ${scheme} record"
     fi
 }
 
@@ -199,7 +201,7 @@ parse_args() {
     # reset this in case we reuse this later
     OPTIND=1
 
-    if [[ "$*" == "" ]]; then
+    if [[ -z "$*" ]]; then
         disphelpcmd
     fi
 
@@ -235,9 +237,6 @@ parse_args() {
                         title="# ${!OPTIND}"
                         OPTIND=$((OPTIND + 1))
                         ;;
-                    tet)
-                        has_tsv_source=true
-                        ;&
                     expresstitle|et|yymm)
                         local arg="${!OPTIND}"
                         month_query=$(get_month_query "$arg")
@@ -568,7 +567,7 @@ run_pre_process() {
     fi
     if [ $has_tsv_source == true ]; then
 
-        date_in_line=$(head -n 3 "tsv/${scheme}.tsv" | tail -1 | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        date_in_line=$(head -n 3 "$SCRIPT_DIR/tsv/${scheme}.tsv" | tail -1 | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
 
         # 2025-05- turns into 2025-06-01
         month_end=$(date -d "${month_query}01 +1 month" +%F)
@@ -591,7 +590,7 @@ make sure you have the whole catalog spreadsheet in your clipboard before runnin
             esac
         fi
 
-        grep "${month_query}" "./tsv/${scheme}.tsv" > "$RANK_INPUT"
+        grep "${month_query}" "$SCRIPT_DIR/tsv/${scheme}.tsv" > "$RANK_INPUT"
     else
         $clip_paste > "$RANK_INPUT"
     fi
