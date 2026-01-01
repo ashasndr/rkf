@@ -10,6 +10,7 @@ source "$SCRIPT_DIR/imports/global.sh"
 ################## FUNCTIONS
 changelogs() {
     cat <<EOF
+    2.6 - Split IS/Regular
     2.5 - Charcount option, code cleanup
     2.4 - Added wiki, config.conf, and --tet and --editconf
     2.3 - Added tsvs
@@ -322,13 +323,35 @@ filter_out_ep() {
     fi
 }
 
+# parse_wanted_cols() {
+#     awk -v cols="$cols" -v FS='\t' -v OFS='\t' '{
+#         n = split(cols, a, " ")
+#         for (i=1; i<=n; i++) printf "%s%s", $a[i], (i<n ? OFS : ORS)
+#     }'
+# }
+
 parse_wanted_cols() {
-    awk -v cols="$cols" -v FS='\t' -v OFS='\t' '{
-        n = split(cols, a, " ")
-        for (i=1; i<=n; i++) printf "%s%s", $a[i], (i<n ? OFS : ORS)
-    }'
+    if [ "$scheme" = "NCS" ]; then
+        awk -v cols="$cols" -v FS='\t' -v OFS='\t' '{
+            n = split(cols, a, " ")
+            for (i=1; i<=n; i++) {
+                if (i==1 && substr($0, 12, 1)=="I") {
+                    printf "%s%%IS", $a[i]
+                } else {
+                    printf "%s", $a[i]
+                }
+                printf "%s", (i<n ? OFS : ORS)
+            }
+        }'
+    else
+        awk -v cols="$cols" -v FS='\t' -v OFS='\t' '{
+            n = split(cols, a, " ")
+            for (i=1; i<=n; i++) printf "%s%s", $a[i], (i<n ? OFS : ORS)
+        }'
+    fi
 }
 # reminder for future ash if needed ORS=newline
+
 
 # emojify: adds an emoji according to the genre parsed from the spreadsheet/tsv/whatever
 emojify() {
@@ -342,10 +365,10 @@ emojify() {
             mapping_str+="${genre};;;${emoji}<<<>>>"
         done
         mapping_str=$(echo "${mapping_str}" | sed 's/<<<>>>$//')
-
         awk -v FS='\t' -v OFS='\t' \
             -v fallback_emoji="$DEFAULT_EMOJI" \
-            -v mappings="$mapping_str" '
+            -v mappings="$mapping_str" \
+            -v is_suffix=":internetsounds:" '
         BEGIN {
             # chops up the mapping str inputted into pairs of regexes and emojis
             pair_count = split(mappings, pairs, "<<<>>>")
@@ -355,14 +378,21 @@ emojify() {
                 emoji[i] = rgem[2]
             }
         }
-
-        function genre_of(genre, i) {
+        function genre_of(genre, i, base_genre) {
+            # check if genre ends with %IS (internetsounds)
+            if (genre ~ /%IS$/) {
+                base_genre = substr(genre, 1, length(genre) - 3)
+                for (i = 1; i <= pair_count; i++) {
+                    if (base_genre ~ regex[i]) return emoji[i] is_suffix
+                }
+                return fallback_emoji is_suffix
+            }
+            # no intenret sounds genre lookup
             for (i = 1; i <= pair_count; i++) {
                 if (genre ~ regex[i]) return emoji[i]
             }
             return fallback_emoji
         }
-
         {
             if (NF == 3)
                 $1 = genre_of($1)
@@ -488,27 +518,69 @@ separatorify() {
 # calculate average of all scores
 avgcalc() {
     if [[ $has_avgcalc == true ]]; then
-        awk -F'\\|' '
-        {
-            rating_part = $2
-            gsub(/^[ \t]+/, "", rating_part)
+        if [[ $has_split_avg == true ]]; then
+            awk -F'\\|' '
+                {
+                    rating_part = $2
+                    gsub(/^[ \t]+/, "", rating_part)
+                    split(rating_part, parts, "-")
+                    gsub(/^[ \t]+|[ \t]+$/, "", parts[1])
+                    if (match(parts[1], /^([0-9]+(\.[0-9])?)\/([0-9]+)$/, m)) {
+                        rating = m[1] + 0
+                        scale  = m[3]
+                        if (scale == 10) {
+                            # Check if line contains :internetsounds:
+                            if ($0 ~ /:internetsounds:/) {
+                                sum_is += rating
+                                count_is++
+                            } else {
+                                sum_no_is += rating
+                                count_no_is++
+                            }
+                            # Total for both combined
+                            sum_total += rating
+                            count_total++
+                        }
+                    }
+                }
+                END {
+                    printf "### Averages: "
+                    if (count_no_is > 0) {
+                        avg_no_is = sum_no_is / count_no_is
+                        printf "%.1f/10 (:circumcisedncs:/:arcade:)", avg_no_is
+                    }
+                    if (count_is > 0) {
+                        avg_is = sum_is / count_is
+                        printf ", %.1f/10 (:internetsounds:)", avg_is
+                    }
+                    if (count_total > 0) {
+                        avg_total = sum_total / count_total
+                        printf ", %.1f/10 (combined)\n", avg_total
+                    }
+                }'
+        else
+            awk -F'\\|' '
+            {
+                rating_part = $2
+                gsub(/^[ \t]+/, "", rating_part)
 
-            split(rating_part, parts, "-")
-            gsub(/^[ \t]+|[ \t]+$/, "", parts[1])
+                split(rating_part, parts, "-")
+                gsub(/^[ \t]+|[ \t]+$/, "", parts[1])
 
-            if (match(parts[1], /^([0-9]+(\.[0-9])?)\/([0-9]+)$/, m)) {
-                rating = m[1] + 0
-                scale  = m[3]
-                if (scale == 10) {
-                    sum += rating
-                    count++
+                if (match(parts[1], /^([0-9]+(\.[0-9])?)\/([0-9]+)$/, m)) {
+                    rating = m[1] + 0
+                    scale  = m[3]
+                    if (scale == 10) {
+                        sum += rating
+                        count++
+                    }
                 }
             }
-        }
-        END {
-            avg = sum / count
-            printf "### Average monthly score: %.1f/10\n", avg
-        }'
+            END {
+                avg = sum / count
+                printf "### Average monthly score: %.1f/10\n", avg
+            }'
+        fi
     fi
 }
 
@@ -594,7 +666,7 @@ make sure you have the whole catalog spreadsheet in your clipboard before runnin
     else
         $clip_paste > "$RANK_INPUT"
     fi
-    lnend < "$RANK_INPUT" | parse_wanted_cols | filter_out_ep \
+    lnend < "$RANK_INPUT" | tee test.txt | parse_wanted_cols | tee test2.txt | filter_out_ep \
     | emojify | sed 's/ | /, /g' | format_into_song > "$RANK_TEMP";
 }
 

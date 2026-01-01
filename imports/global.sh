@@ -18,6 +18,7 @@ has_recover=false
 month_query=""
 has_avgcalc=$default_append_average
 has_tsv_source=false
+has_split_avg=$default_split_avg_internetsounds
 
 ################
 ##### CONSTS
