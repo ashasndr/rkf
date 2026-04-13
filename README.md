@@ -2,6 +2,8 @@
 
 rkf (RanK Format) is a Bash CLI tool to make it easier to make Monstercat/NCS rankings. I wanted to start ranking all Monstercat tracks, but I quickly noticed my old tool to make these could use some huge improvements, so i made this sort of v2.
 
+Currently rewriting it in Rust, will archive this repo when it's done.
+
 ## Installation
 
 Dependencies:
